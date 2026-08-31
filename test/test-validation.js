@@ -3,6 +3,7 @@
  * Runs directly with: node test/test-validation.js or npm test
  */
 const http = require('http');
+const mongoose = require('mongoose');
 
 process.env.NODE_ENV = 'test_env';
 process.env.PORT = '5050';
@@ -77,18 +78,24 @@ const runTests = async () => {
     const rootRes = await request('GET', '/');
     assert(rootRes.status === 200, 'GET / returns 200 OK');
 
+    // Future date helper
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 7);
+    const futureDateIso = futureDate.toISOString();
+
     // 2. Valid POST /tasks
-    console.log('\n--- 2. Valid POST /tasks (Valid payload) ---');
+    console.log('\n--- 2. Valid POST /tasks (Valid payload with future dueDate) ---');
     const validTaskPayload = {
-      title: 'Complete Codetrain Backend Exercise',
+      title: 'Complete Codetrain Backend Assignment',
       description: 'Add express-validator to task routes and handle errors',
       completed: false,
-      dueDate: '2026-09-05T18:00:00.000Z',
+      dueDate: futureDateIso,
     };
     const validPostRes = await request('POST', '/tasks', validTaskPayload);
     assert(validPostRes.status === 201, 'POST /tasks returns 201 Created', JSON.stringify(validPostRes.data));
     assert(validPostRes.data.data && validPostRes.data.data.title === validTaskPayload.title, 'Created task has correct title');
     const createdTaskId = validPostRes.data.data ? (validPostRes.data.data.id || validPostRes.data.data._id) : null;
+    assert(mongoose.Types.ObjectId.isValid(createdTaskId), `Created task ID is a valid Mongo ObjectId (${createdTaskId})`);
 
     // 3. Invalid POST: Missing title
     console.log('\n--- 3. Invalid POST /tasks (Missing title) ---');
@@ -111,7 +118,7 @@ const runTests = async () => {
     });
     assert(emptyTitleRes.status === 400, 'POST /tasks with whitespace title returns 400 Bad Request', `Got status ${emptyTitleRes.status}`);
 
-    // 5. Invalid POST: Wrong type for completed (string "not-a-bool")
+    // 5. Invalid POST: Wrong type for completed
     console.log('\n--- 5. Invalid POST /tasks (Invalid completed type) ---');
     const invalidCompletedRes = await request('POST', '/tasks', {
       title: 'Valid Title',
@@ -130,48 +137,100 @@ const runTests = async () => {
       title: 'Valid Title',
       dueDate: 'not-a-date-format',
     });
-    assert(invalidDateRes.status === 400, 'POST /tasks with invalid dueDate returns 400 Bad Request', `Got status ${invalidDateRes.status}`);
+    assert(invalidDateRes.status === 400, 'POST /tasks with non-ISO dueDate returns 400 Bad Request', `Got status ${invalidDateRes.status}`);
+
+    // 7. Invalid POST: Past dueDate (Assignment Requirement 1)
+    console.log('\n--- 7. Invalid POST /tasks (Past dueDate earlier than today) ---');
+    const pastDateRes = await request('POST', '/tasks', {
+      title: 'Task with Past Due Date',
+      dueDate: '2020-01-01T00:00:00.000Z',
+    });
+    assert(pastDateRes.status === 400, 'POST /tasks with past dueDate returns 400 Bad Request', `Got status ${pastDateRes.status}`);
     assert(
-      Array.isArray(invalidDateRes.data.errors) && invalidDateRes.data.errors.some((e) => e.field === 'dueDate'),
-      'Error response contains validation message for dueDate field',
-      JSON.stringify(invalidDateRes.data)
+      Array.isArray(pastDateRes.data.errors) && pastDateRes.data.errors.some((e) => e.field === 'dueDate' && e.message.includes('earlier than today')),
+      'Error response contains message that dueDate cannot be earlier than today',
+      JSON.stringify(pastDateRes.data)
     );
 
-    // 7. GET /tasks
-    console.log('\n--- 7. GET /tasks (Retrieve list) ---');
+    // 8. GET /tasks
+    console.log('\n--- 8. GET /tasks (Retrieve list) ---');
     const getTasksRes = await request('GET', '/tasks');
     assert(getTasksRes.status === 200, 'GET /tasks returns 200 OK');
     assert(Array.isArray(getTasksRes.data.data) && getTasksRes.data.data.length >= 1, 'GET /tasks returns array with created task');
 
-    // 8. GET /tasks/:id
-    console.log('\n--- 8. GET /tasks/:id (Retrieve single task) ---');
+    // 9. GET /tasks?completed=true & GET /tasks?completed=false (Assignment Requirement 3 - Stretch Goal Filter)
+    console.log('\n--- 9. GET /tasks with valid query filter (?completed=true/false) ---');
+    const getCompletedFalseRes = await request('GET', '/tasks?completed=false');
+    assert(getCompletedFalseRes.status === 200, 'GET /tasks?completed=false returns 200 OK');
+    assert(getCompletedFalseRes.data.data.every((t) => t.completed === false), 'All returned tasks have completed: false');
+
+    const getCompletedTrueRes = await request('GET', '/tasks?completed=true');
+    assert(getCompletedTrueRes.status === 200, 'GET /tasks?completed=true returns 200 OK');
+
+    // 10. Invalid GET /tasks?completed=invalid (Assignment Requirement 3)
+    console.log('\n--- 10. Invalid GET /tasks?completed=invalid (Query validation) ---');
+    const invalidQueryRes = await request('GET', '/tasks?completed=yes');
+    assert(invalidQueryRes.status === 400, "GET /tasks?completed=yes returns 400 Bad Request", `Got status ${invalidQueryRes.status}`);
+    assert(
+      Array.isArray(invalidQueryRes.data.errors) && invalidQueryRes.data.errors.some((e) => e.field === 'completed'),
+      'Error response contains validation error for completed query parameter',
+      JSON.stringify(invalidQueryRes.data)
+    );
+
+    // 11. Invalid param('id').isMongoId() on GET, PUT, DELETE (Assignment Requirement 2)
+    console.log('\n--- 11. Invalid param ID validation (GET, PUT, DELETE /tasks/:id) ---');
+    const invalidId = 'not-a-valid-mongo-id';
+
+    const invalidGetIdRes = await request('GET', `/tasks/${invalidId}`);
+    assert(invalidGetIdRes.status === 400, 'GET /tasks/invalid-id returns 400 Bad Request before querying DB', `Got status ${invalidGetIdRes.status}`);
+    assert(
+      Array.isArray(invalidGetIdRes.data.errors) && invalidGetIdRes.data.errors.some((e) => e.field === 'id'),
+      'GET invalid ID response contains ID validation error',
+      JSON.stringify(invalidGetIdRes.data)
+    );
+
+    const invalidPutIdRes = await request('PUT', `/tasks/${invalidId}`, { title: 'Update' });
+    assert(invalidPutIdRes.status === 400, 'PUT /tasks/invalid-id returns 400 Bad Request', `Got status ${invalidPutIdRes.status}`);
+
+    const invalidDeleteIdRes = await request('DELETE', `/tasks/${invalidId}`);
+    assert(invalidDeleteIdRes.status === 400, 'DELETE /tasks/invalid-id returns 400 Bad Request', `Got status ${invalidDeleteIdRes.status}`);
+
+    // 12. Valid GET /tasks/:id
+    console.log('\n--- 12. Valid GET /tasks/:id (Retrieve single task) ---');
     if (createdTaskId) {
       const getSingleRes = await request('GET', `/tasks/${createdTaskId}`);
       assert(getSingleRes.status === 200, `GET /tasks/${createdTaskId} returns 200 OK`);
+      assert(getSingleRes.data.data && (getSingleRes.data.data.id === createdTaskId || getSingleRes.data.data._id === createdTaskId), 'Returned correct task ID');
     }
 
-    // 9. Valid PUT /tasks/:id
-    console.log('\n--- 9. Valid PUT /tasks/:id (Update task) ---');
+    // 13. Valid PUT /tasks/:id
+    console.log('\n--- 13. Valid PUT /tasks/:id (Update task) ---');
     if (createdTaskId) {
       const updateRes = await request('PUT', `/tasks/${createdTaskId}`, {
-        title: 'Updated Task Title',
+        title: 'Updated Codetrain Task Title',
         completed: true,
       });
       assert(updateRes.status === 200, 'PUT /tasks/:id returns 200 OK', JSON.stringify(updateRes.data));
       assert(updateRes.data.data && updateRes.data.data.completed === true, 'Task completed status was updated to true');
     }
 
-    // 10. Invalid PUT /tasks/:id (Invalid completed value)
-    console.log('\n--- 10. Invalid PUT /tasks/:id (Validation failure on update) ---');
+    // 14. Invalid PUT /tasks/:id (Past dueDate)
+    console.log('\n--- 14. Invalid PUT /tasks/:id (Past dueDate on update) ---');
     if (createdTaskId) {
-      const invalidPutRes = await request('PUT', `/tasks/${createdTaskId}`, {
-        completed: 'not_boolean',
+      const invalidPutDueDateRes = await request('PUT', `/tasks/${createdTaskId}`, {
+        dueDate: '2021-05-10T10:00:00.000Z',
       });
-      assert(invalidPutRes.status === 400, 'PUT /tasks/:id with invalid completed value returns 400 Bad Request');
+      assert(invalidPutDueDateRes.status === 400, 'PUT /tasks/:id with past dueDate returns 400 Bad Request');
     }
 
-    // 11. DELETE /tasks/:id
-    console.log('\n--- 11. DELETE /tasks/:id (Delete task) ---');
+    // 15. Non-existent valid MongoId (404 Not Found)
+    console.log('\n--- 15. Non-existent valid MongoId (404 Not Found) ---');
+    const nonExistentMongoId = new mongoose.Types.ObjectId().toString();
+    const notFoundRes = await request('GET', `/tasks/${nonExistentMongoId}`);
+    assert(notFoundRes.status === 404, `GET /tasks/${nonExistentMongoId} returns 404 Not Found`);
+
+    // 16. DELETE /tasks/:id
+    console.log('\n--- 16. DELETE /tasks/:id (Delete task) ---');
     if (createdTaskId) {
       const deleteRes = await request('DELETE', `/tasks/${createdTaskId}`);
       assert(deleteRes.status === 200, 'DELETE /tasks/:id returns 200 OK');

@@ -3,7 +3,6 @@ const Task = require('../models/Task');
 
 // In-memory store fallback when MongoDB is offline
 let inMemoryTasks = [];
-let nextInMemoryId = 1;
 
 /**
  * Helper to check if MongoDB is active
@@ -11,14 +10,20 @@ let nextInMemoryId = 1;
 const isMongoConnected = () => mongoose.connection.readyState === 1;
 
 /**
- * @desc   Get all tasks
+ * @desc   Get all tasks (with optional ?completed=true/false query filter)
  * @route  GET /tasks
  * @status 200 OK
  */
 const getAllTasks = async (req, res, next) => {
   try {
+    const { completed } = req.query;
+    const filter = {};
+    if (completed !== undefined) {
+      filter.completed = completed === 'true';
+    }
+
     if (isMongoConnected()) {
-      const tasks = await Task.find().sort({ createdAt: -1 });
+      const tasks = await Task.find(filter).sort({ createdAt: -1 });
       return res.status(200).json({
         success: true,
         count: tasks.length,
@@ -27,10 +32,16 @@ const getAllTasks = async (req, res, next) => {
     }
 
     // In-memory fallback
+    let tasks = inMemoryTasks;
+    if (completed !== undefined) {
+      const isCompleted = completed === 'true';
+      tasks = tasks.filter((t) => t.completed === isCompleted);
+    }
+
     return res.status(200).json({
       success: true,
-      count: inMemoryTasks.length,
-      data: inMemoryTasks,
+      count: tasks.length,
+      data: tasks,
     });
   } catch (error) {
     next(error);
@@ -47,12 +58,6 @@ const getTaskById = async (req, res, next) => {
     const { id } = req.params;
 
     if (isMongoConnected()) {
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(404).json({
-          success: false,
-          message: `Task not found with ID: ${id}`,
-        });
-      }
       const task = await Task.findById(id);
       if (!task) {
         return res.status(404).json({
@@ -109,9 +114,10 @@ const createTask = async (req, res, next) => {
     }
 
     // In-memory fallback
+    const newId = new mongoose.Types.ObjectId().toString();
     const newTask = {
-      _id: String(nextInMemoryId++),
-      id: String(nextInMemoryId - 1),
+      _id: newId,
+      id: newId,
       title,
       description: description || '',
       completed: completed !== undefined ? Boolean(completed) : false,
@@ -148,13 +154,6 @@ const updateTask = async (req, res, next) => {
     if (dueDate !== undefined) updates.dueDate = dueDate ? new Date(dueDate) : null;
 
     if (isMongoConnected()) {
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(404).json({
-          success: false,
-          message: `Task not found with ID: ${id}`,
-        });
-      }
-
       const task = await Task.findByIdAndUpdate(id, updates, {
         new: true,
         runValidators: true,
@@ -213,13 +212,6 @@ const deleteTask = async (req, res, next) => {
     const { id } = req.params;
 
     if (isMongoConnected()) {
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(404).json({
-          success: false,
-          message: `Task not found with ID: ${id}`,
-        });
-      }
-
       const task = await Task.findByIdAndDelete(id);
       if (!task) {
         return res.status(404).json({
@@ -266,3 +258,4 @@ module.exports = {
   updateTask,
   deleteTask,
 };
+

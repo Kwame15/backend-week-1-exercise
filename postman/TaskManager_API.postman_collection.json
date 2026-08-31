@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "a93e876b-c741-450f-90e6-0e104f2fbf40",
-    "name": "Task Manager API - Express Validator",
-    "description": "Codetrain Africa Task Manager CRUD API with request validation using express-validator",
+    "name": "Task Manager API - Extended Validation (Codetrain Africa)",
+    "description": "Codetrain Africa Backend Development Assignment: Extended validation on Task Manager API using express-validator and dedicated validators module.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -12,134 +12,169 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:5000/tasks",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "5000",
+          "raw": "{{baseUrl}}/tasks",
+          "host": ["{{baseUrl}}"],
           "path": ["tasks"]
         },
-        "description": "Returns list of all tasks with 200 OK"
+        "description": "Returns a list of all tasks. (Status: 200 OK)"
       },
       "response": []
     },
     {
-      "name": "2. POST Create Task - Valid (201 Created)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"title\": \"Learn express-validator\",\n  \"description\": \"Add validation middleware to Express routes\",\n  \"completed\": false,\n  \"dueDate\": \"2026-09-05T18:00:00.000Z\"\n}"
-        },
-        "url": {
-          "raw": "http://localhost:5000/tasks",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "5000",
-          "path": ["tasks"]
-        },
-        "description": "Creates a new task with all valid fields (201 Created)"
-      },
-      "response": []
-    },
-    {
-      "name": "3. POST Create Task - Invalid Missing Title (400 Bad Request)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"description\": \"Missing title completely\",\n  \"completed\": false\n}"
-        },
-        "url": {
-          "raw": "http://localhost:5000/tasks",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "5000",
-          "path": ["tasks"]
-        },
-        "description": "Tests validation failure when title is missing (400 Bad Request)"
-      },
-      "response": []
-    },
-    {
-      "name": "4. POST Create Task - Invalid Completed Type (400 Bad Request)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"title\": \"Fix Task Completion\",\n  \"completed\": \"not_a_boolean_string\"\n}"
-        },
-        "url": {
-          "raw": "http://localhost:5000/tasks",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "5000",
-          "path": ["tasks"]
-        },
-        "description": "Tests validation failure when completed is not a boolean (400 Bad Request)"
-      },
-      "response": []
-    },
-    {
-      "name": "5. POST Create Task - Invalid DueDate (400 Bad Request)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"title\": \"Check Due Date\",\n  \"dueDate\": \"invalid-date-format\"\n}"
-        },
-        "url": {
-          "raw": "http://localhost:5000/tasks",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "5000",
-          "path": ["tasks"]
-        },
-        "description": "Tests validation failure when dueDate is not ISO 8601 (400 Bad Request)"
-      },
-      "response": []
-    },
-    {
-      "name": "6. GET Single Task by ID (200 OK)",
+      "name": "2. GET Tasks Filter - Valid completed=true (200 OK)",
       "request": {
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:5000/tasks/1",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "5000",
-          "path": ["tasks", "1"]
+          "raw": "{{baseUrl}}/tasks?completed=true",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks"],
+          "query": [
+            {
+              "key": "completed",
+              "value": "true",
+              "description": "Filter tasks where completed is true"
+            }
+          ]
         },
-        "description": "Retrieves a single task by ID (replace 1 with your task ID)"
+        "description": "Demonstrates stretch goal filter: returns only completed tasks. (Status: 200 OK)"
       },
       "response": []
     },
     {
-      "name": "7. PUT Update Task (200 OK)",
+      "name": "3. GET Tasks Filter - Invalid completed Query Value (400 Bad Request)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/tasks?completed=not_a_boolean",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks"],
+          "query": [
+            {
+              "key": "completed",
+              "value": "not_a_boolean",
+              "description": "Invalid query param value"
+            }
+          ]
+        },
+        "description": "Demonstrates Assignment Requirement 3: completed query param must only be 'true' or 'false'. Any other value returns 400 Bad Request."
+      },
+      "response": []
+    },
+    {
+      "name": "4. POST Create Task - Valid (201 Created)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Complete Codetrain Validation Assignment\",\n  \"description\": \"Add express-validator chains and dedicated validator module\",\n  \"completed\": false,\n  \"dueDate\": \"2026-09-30T18:00:00.000Z\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/tasks",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks"]
+        },
+        "description": "Demonstrates Assignment Requirement 5: Valid task creation with future dueDate. (Status: 201 Created)"
+      },
+      "response": []
+    },
+    {
+      "name": "5. POST Create Task - Invalid DueDate in Past (400 Bad Request)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Task with Past Due Date\",\n  \"description\": \"This should be rejected because dueDate is in the past\",\n  \"completed\": false,\n  \"dueDate\": \"2020-01-01T00:00:00.000Z\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/tasks",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks"]
+        },
+        "description": "Demonstrates Assignment Requirement 1 & 5: Rejects past dates if dueDate is earlier than today. (Status: 400 Bad Request)"
+      },
+      "response": []
+    },
+    {
+      "name": "6. POST Create Task - Invalid Missing Title (400 Bad Request)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Missing title payload\",\n  \"completed\": false\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/tasks",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks"]
+        },
+        "description": "Rejects request when title is missing or empty. (Status: 400 Bad Request)"
+      },
+      "response": []
+    },
+    {
+      "name": "7. GET Single Task - Valid ID (200 OK)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/tasks/{{taskId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks", "{{taskId}}"]
+        },
+        "description": "Retrieves a single task by its valid 24-character hexadecimal MongoDB ObjectId. (Status: 200 OK)"
+      },
+      "response": []
+    },
+    {
+      "name": "8. GET Single Task - Invalid ID Format (400 Bad Request)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/tasks/invalid-id-format-123",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks", "invalid-id-format-123"]
+        },
+        "description": "Demonstrates Assignment Requirement 2 & 5: param('id').isMongoId() catches invalid ID format on GET /tasks/:id before querying database. (Status: 400 Bad Request)"
+      },
+      "response": []
+    },
+    {
+      "name": "9. GET Single Task - Non-Existent Valid ID (404 Not Found)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/tasks/507f1f77bcf86cd799439011",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks", "507f1f77bcf86cd799439011"]
+        },
+        "description": "Demonstrates 404 Not Found when a valid 24-char ObjectId is provided but does not exist in the database. (Status: 404 Not Found)"
+      },
+      "response": []
+    },
+    {
+      "name": "10. PUT Update Task - Valid (200 OK)",
       "request": {
         "method": "PUT",
         "header": [
@@ -150,34 +185,102 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"title\": \"Updated Task Title\",\n  \"completed\": true\n}"
+          "raw": "{\n  \"title\": \"Updated Task Title\",\n  \"completed\": true,\n  \"dueDate\": \"2026-10-15T12:00:00.000Z\"\n}"
         },
         "url": {
-          "raw": "http://localhost:5000/tasks/1",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "5000",
-          "path": ["tasks", "1"]
+          "raw": "{{baseUrl}}/tasks/{{taskId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks", "{{taskId}}"]
         },
-        "description": "Updates a task with valid fields (200 OK)"
+        "description": "Updates a task with valid fields and future dueDate. (Status: 200 OK)"
       },
       "response": []
     },
     {
-      "name": "8. DELETE Task (200 OK)",
+      "name": "11. PUT Update Task - Invalid ID Format (400 Bad Request)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Updated Task Title\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/tasks/invalid-mongo-id",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks", "invalid-mongo-id"]
+        },
+        "description": "Demonstrates Assignment Requirement 2 & 5: param('id').isMongoId() catches invalid ID format on PUT /tasks/:id. (Status: 400 Bad Request)"
+      },
+      "response": []
+    },
+    {
+      "name": "12. PUT Update Task - Invalid Past DueDate (400 Bad Request)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dueDate\": \"2021-01-01T00:00:00.000Z\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/tasks/{{taskId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks", "{{taskId}}"]
+        },
+        "description": "Demonstrates Assignment Requirement 1: Rejects updating dueDate to a past date. (Status: 400 Bad Request)"
+      },
+      "response": []
+    },
+    {
+      "name": "13. DELETE Task - Invalid ID Format (400 Bad Request)",
       "request": {
         "method": "DELETE",
         "header": [],
         "url": {
-          "raw": "http://localhost:5000/tasks/1",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "5000",
-          "path": ["tasks", "1"]
+          "raw": "{{baseUrl}}/tasks/invalid-mongo-id",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks", "invalid-mongo-id"]
         },
-        "description": "Deletes a task by ID (200 OK)"
+        "description": "Demonstrates Assignment Requirement 2 & 5: param('id').isMongoId() catches invalid ID format on DELETE /tasks/:id. (Status: 400 Bad Request)"
       },
       "response": []
+    },
+    {
+      "name": "14. DELETE Task - Valid (200 OK)",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/tasks/{{taskId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks", "{{taskId}}"]
+        },
+        "description": "Deletes a task by valid MongoDB ID. (Status: 200 OK)"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "taskId",
+      "value": "64f8a1234567890abcdef123",
+      "type": "string"
     }
   ]
 }

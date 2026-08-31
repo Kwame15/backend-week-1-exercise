@@ -1,41 +1,53 @@
-# Task Manager API - Request Validation with express-validator
+# Task Manager API - Extended Request Validation
 
-This project adds request validation using `express-validator` to the Task Manager CRUD API (Node.js, Express, MongoDB) for Codetrain Africa.
+This project implements extended request validation using `express-validator` for the Task Manager CRUD API (Node.js, Express, MongoDB) for Codetrain Africa.
 
 ---
 
 ## 📌 Features & Validation Rules
 
-### 1. Request Validation Chains (`express-validator`)
+All validation chains have been extracted into a dedicated module: [`validators/taskValidators.js`](./validators/taskValidators.js).
+
+### 1. Endpoint Validations
 
 #### **`POST /tasks` (Create Task)**
 - `title`: **Required**, must be a non-empty string.
 - `description`: **Optional**, if present must be a string.
 - `completed`: **Optional**, if present must be a boolean (`true` or `false`).
-- `dueDate`: **Optional**, if present must be a valid ISO 8601 date string (e.g., `2026-09-05` or `2026-09-05T18:00:00.000Z`).
+- `dueDate`: **Optional**, if present must be a valid ISO 8601 date string and **cannot be earlier than today** (rejects past dates).
 
 #### **`PUT /tasks/:id` (Update Task)**
+- `id` (param): **Required**, must be a valid 24-character hexadecimal MongoDB ObjectId (`param('id').isMongoId()`).
 - `title`: **Optional**, if present must be a non-empty string.
 - `description`: **Optional**, if present must be a string.
 - `completed`: **Optional**, if present must be a boolean.
-- `dueDate`: **Optional**, if present must be a valid ISO 8601 date string.
+- `dueDate`: **Optional**, if present must be a valid ISO 8601 date string and **cannot be earlier than today**.
+
+#### **`GET /tasks/:id` (Get Single Task)**
+- `id` (param): **Required**, must be a valid 24-character hexadecimal MongoDB ObjectId (`param('id').isMongoId()`). Invalid ID format returns `400 Bad Request` before querying the database.
+
+#### **`DELETE /tasks/:id` (Delete Task)**
+- `id` (param): **Required**, must be a valid 24-character hexadecimal MongoDB ObjectId (`param('id').isMongoId()`). Invalid ID format returns `400 Bad Request`.
+
+#### **`GET /tasks` (Get All Tasks & Query Filter)**
+- `completed` (query): **Optional**, must only be `'true'` or `'false'`. Any other value returns `400 Bad Request`.
 
 ### 2. Reusable Validation Middleware (`handleValidationErrors`)
-- Checks `validationResult(req)`.
-- If validation errors exist, halts request execution and responds with status **`400 Bad Request`** and a clean list of error objects.
+- Checks `validationResult(req)` from `express-validator`.
+- If validation errors exist, halts request execution and responds with status **`400 Bad Request`** and a formatted error array.
 - If no errors, calls `next()` to proceed to the controller.
 
 ---
 
-## 📊 Suggested HTTP Status Codes
+## 📊 HTTP Status Codes
 
 | Action | Route | Success Code | Error Code |
 | :--- | :--- | :--- | :--- |
 | Create Task | `POST /tasks` | `201 Created` | `400 Bad Request` |
-| Get All Tasks | `GET /tasks` | `200 OK` | `500 Server Error` |
-| Get Task by ID | `GET /tasks/:id` | `200 OK` | `404 Not Found` |
+| Get All Tasks | `GET /tasks` | `200 OK` | `400 Bad Request` (invalid query param) / `500 Server Error` |
+| Get Task by ID | `GET /tasks/:id` | `200 OK` | `400 Bad Request` (invalid Mongo ID) / `404 Not Found` |
 | Update Task | `PUT /tasks/:id` | `200 OK` | `400 Bad Request` / `404 Not Found` |
-| Delete Task | `DELETE /tasks/:id` | `200 OK` | `404 Not Found` |
+| Delete Task | `DELETE /tasks/:id` | `200 OK` | `400 Bad Request` / `404 Not Found` |
 
 ---
 
@@ -70,126 +82,23 @@ Server will run on: `http://localhost:5000`
 
 ## 🧪 Testing with Postman
 
-You can import the ready-to-use Postman collection from `postman/TaskManager_API.postman_collection.json` or test manually with the following examples:
-
-### Test 1: Valid POST Request (Expected: `201 Created`)
-- **Method:** `POST`
-- **URL:** `http://localhost:5000/tasks`
-- **Headers:** `Content-Type: application/json`
-- **Body (raw JSON):**
-  ```json
-  {
-    "title": "Complete Codetrain Backend Assignment",
-    "description": "Add express-validator to task routes",
-    "completed": false,
-    "dueDate": "2026-09-05T18:00:00.000Z"
-  }
-  ```
-- **Response:** `201 Created`
-  ```json
-  {
-    "success": true,
-    "message": "Task created successfully",
-    "data": {
-      "id": "1",
-      "title": "Complete Codetrain Backend Assignment",
-      "description": "Add express-validator to task routes",
-      "completed": false,
-      "dueDate": "2026-09-05T18:00:00.000Z",
-      "createdAt": "2026-08-31T21:40:00.000Z",
-      "updatedAt": "2026-08-31T21:40:00.000Z"
-    }
-  }
-  ```
-
----
-
-### Test 2: Invalid POST Request - Missing Title (Expected: `400 Bad Request`)
-- **Method:** `POST`
-- **URL:** `http://localhost:5000/tasks`
-- **Headers:** `Content-Type: application/json`
-- **Body (raw JSON):**
-  ```json
-  {
-    "description": "This payload has no title",
-    "completed": false
-  }
-  ```
-- **Response:** `400 Bad Request`
-  ```json
-  {
-    "success": false,
-    "message": "Validation failed",
-    "errors": [
-      {
-        "field": "title",
-        "message": "Title is required"
-      }
-    ]
-  }
-  ```
-
----
-
-### Test 3: Invalid POST Request - Wrong Type for `completed` (Expected: `400 Bad Request`)
-- **Method:** `POST`
-- **URL:** `http://localhost:5000/tasks`
-- **Headers:** `Content-Type: application/json`
-- **Body (raw JSON):**
-  ```json
-  {
-    "title": "Invalid Completed Field Test",
-    "completed": "not-a-boolean"
-  }
-  ```
-- **Response:** `400 Bad Request`
-  ```json
-  {
-    "success": false,
-    "message": "Validation failed",
-    "errors": [
-      {
-        "field": "completed",
-        "message": "Completed must be a boolean (true or false)",
-        "value": "not-a-boolean"
-      }
-    ]
-  }
-  ```
-
----
-
-### Test 4: Invalid POST Request - Invalid `dueDate` Format (Expected: `400 Bad Request`)
-- **Method:** `POST`
-- **URL:** `http://localhost:5000/tasks`
-- **Headers:** `Content-Type: application/json`
-- **Body (raw JSON):**
-  ```json
-  {
-    "title": "Invalid Due Date Test",
-    "dueDate": "tomorrow-afternoon"
-  }
-  ```
-- **Response:** `400 Bad Request`
-  ```json
-  {
-    "success": false,
-    "message": "Validation failed",
-    "errors": [
-      {
-        "field": "dueDate",
-        "message": "Due date must be a valid ISO 8601 date (e.g. 2026-08-31 or 2026-08-31T12:00:00.000Z)",
-        "value": "tomorrow-afternoon"
-      }
-    ]
-  }
-  ```
+The Postman collection is located at [`postman/TaskManager_API.postman_collection.json`](./postman/TaskManager_API.postman_collection.json). It demonstrates:
+1. **Valid create** (`POST /tasks` -> `201 Created`)
+2. **Invalid dueDate (past date)** (`POST /tasks` -> `400 Bad Request`)
+3. **Invalid ID format on GET** (`GET /tasks/invalid-id` -> `400 Bad Request`)
+4. **Invalid ID format on PUT** (`PUT /tasks/invalid-id` -> `400 Bad Request`)
+5. **Invalid ID format on DELETE** (`DELETE /tasks/invalid-id` -> `400 Bad Request`)
+6. **Invalid completed query value** (`GET /tasks?completed=not_a_boolean` -> `400 Bad Request`)
+7. **Valid query filter** (`GET /tasks?completed=true` -> `200 OK`)
+8. **404 Not Found** on non-existent valid Mongo ID (`GET /tasks/507f1f77bcf86cd799439011` -> `404 Not Found`)
+9. **Valid updates and deletes** (`PUT /tasks/:id`, `DELETE /tasks/:id` -> `200 OK`)
 
 ---
 
 ## ⚡ Automated Tests
 
-To run the automated test suite that validates all endpoints and edge cases:
+To run the automated test suite:
 ```bash
 npm test
 ```
+This runs 31 comprehensive test assertions covering all assignment requirements.
